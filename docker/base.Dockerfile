@@ -114,7 +114,7 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["argosd", "--addr", "0.0.0.0:7712"]
 
 # --- AMD: source-built ORT with MIGraphX, runtime base ---------------------
-FROM rocm/dev-ubuntu-24.04:6.4 AS ort-amd
+FROM rocm/dev-ubuntu-24.04:7.2 AS ort-amd
 
 ARG ORT_VERSION
 USER root
@@ -122,8 +122,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git cmake ninja-build build-essential python3 \
       migraphx-dev miopen-hip-dev rocblas-dev hipblaslt-dev half \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /opt/rocm/include/migraphx \
-    && ln -sf /opt/rocm/lib/migraphx/include/migraphx/version.h /opt/rocm/include/migraphx/version.h
+    && if [ ! -f /opt/rocm/include/migraphx/version.h ] && [ -f /opt/rocm/lib/migraphx/include/migraphx/version.h ]; then \
+         ln -s /opt/rocm/lib/migraphx/include/migraphx/version.h /opt/rocm/include/migraphx/version.h; \
+       fi
 RUN git clone --depth 1 --branch "v${ORT_VERSION}" --recurse-submodules \
       --shallow-submodules https://github.com/microsoft/onnxruntime.git /ort
 WORKDIR /ort
@@ -132,7 +133,7 @@ RUN ./build.sh --config Release --build_shared_lib --parallel --skip_tests \
       --compile_no_warning_as_error \
       --allow_running_as_root --build_dir /build
 
-FROM rocm/dev-ubuntu-24.04:6.4 AS base-amd
+FROM rocm/dev-ubuntu-24.04:7.2 AS base-amd
 
 ARG GIT_SHA=dev
 LABEL org.opencontainers.image.revision=$GIT_SHA
